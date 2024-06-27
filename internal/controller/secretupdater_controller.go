@@ -18,12 +18,21 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+// TODO(Leo) add custom secret from cfg
+const (
+	defaultSecretName = "test-secret"
 )
 
 // SecretUpdaterReconciler reconciles a SecretUpdater object
@@ -37,17 +46,78 @@ type SecretUpdaterReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the SecretUpdater object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *SecretUpdaterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx).WithValues("ns", req.Namespace, "name", req.Name)
+	logger.Info("Reconciler start")
 
-	// TODO(user): your logic here
+	ns := &v1.Namespace{}
+	err := r.Get(ctx, req.NamespacedName, ns)
+	if err != nil && !errors.IsNotFound(err) {
+		return ctrl.Result{}, fmt.Errorf("ns: %w", err)
+	}
+
+	if err != nil && errors.IsNotFound(err) {
+		logger.Info("ns not found")
+		return ctrl.Result{}, nil
+	}
+
+	if ns.Status.Phase != v1.NamespaceActive {
+		logger.Info("ns not active")
+		return ctrl.Result{}, nil
+	}
+
+	secretName := types.NamespacedName{
+		Namespace: req.Name,
+		Name:      defaultSecretName,
+	}
+
+	err = r.Get(ctx, secretName, &v1.Secret{})
+	if err != nil && errors.IsNotFound(err) {
+		return ctrl.Result{}, fmt.Errorf("secret: %w", err)
+	}
+
+	if err == nil {
+		if _, ok := ns.Labels["need_secrets"]; ok {
+			logger.Info("secret found, label already exists")
+			return ctrl.Result{}, nil
+		}
+
+		oldSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: req.Name,
+				Name:      defaultSecretName,
+			},
+		}
+
+		err := r.Delete(ctx, oldSecret)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
+
+	if _, ok := ns.Labels["need_secrets"]; !ok {
+		logger.Info("Dont create secret cuz label 'need_secrets' dont exist")
+		return ctrl.Result{}, nil
+	}
+
+	newSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: req.Name,
+			Name:      defaultSecretName,
+		},
+		Data: map[string][]byte{
+			"key": []byte("value"),
+		},
+	}
+
+	err = r.Create(ctx, newSecret)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Secret created")
 
 	return ctrl.Result{}, nil
 }

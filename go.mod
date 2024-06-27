@@ -7,7 +7,7 @@ toolchain go1.22.4
 require (
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
-	k8s.io/apimachinery v0.30.0
+	k8s.io/apimachinery v0.30.2
 	k8s.io/client-go v0.30.0
 	sigs.k8s.io/controller-runtime v0.18.2
 )
