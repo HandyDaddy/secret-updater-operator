@@ -13,7 +13,8 @@ RUN go mod download
 
 # Copy the go source
 COPY cmd/main.go cmd/main.go
-COPY api/ api/
+# we dont need copy api cuz we dont have crd
+# COPY api/ api/
 COPY internal/controller/ internal/controller/
 
 # Build
