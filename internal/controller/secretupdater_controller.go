@@ -32,9 +32,8 @@ type SecretUpdaterReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=massad.ops.dummy.my,resources=secretupdaters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=massad.ops.dummy.my,resources=secretupdaters/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=massad.ops.dummy.my,resources=secretupdaters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=,resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=,resources=secrets,verbs=create;list;watch;get;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
